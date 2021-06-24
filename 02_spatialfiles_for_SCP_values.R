@@ -27,6 +27,9 @@ SBDir <- "//spatialfiles.bcgov/work/srm/sry/Local/projlib/StewBase/Small_Home_Ra
 GISDir <- "//spatialfiles.bcgov/work/wlap/sry/Workarea/jburgar/CoViST"
 
 ###---
+# read in taxonomy groupings
+taxon <- read.csv("data/sp_taxon.csv", row.names = 1)
+
 # read in species list data
 sp.list <- read_excel("data/species_list_May-05-21.xlsx",sheet = 3, trim_ws = TRUE, col_types = c("text")) %>% type.convert()
 
@@ -46,19 +49,20 @@ FA7_PA <- st_read(dsn=paste(SBDir,"/",FA.files[11], sep=""), layer=FA.files[11])
 FA8_BL <- st_read(dsn=paste(SBDir,"/",FA.files[12], sep=""), layer=FA.files[12]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
 
 FA_all <- rbind(FA1_CE, FA1_CW, FA1_RL, FA1_SU, FA1_VE, FA2_CH, FA3_AG, FA4_NI, FA5_LS, FA6_AL, FA7_PA, FA8_BL)
+colnames(FA_all)[1] <- "Focal_Area"
+FA_all$Focal_Group <- c(1,1,1,1,1,2,3,4,5,6,7,8)
+
 # FA_all %>% st_transform(crs=26910) %>% st_area()/1000000
 # [1] 273.201320 205.137750 115.794737  98.822113  89.053201  35.848892 107.813251 112.969786  29.449039   6.543545  82.617137
 # [12]  24.562055
 # for Focal Areas <80 km2 secure species cannot be named / identified
 
-
-aoi <- st_read(dsn=GISDir, layer="NewStudyBoundary_STSA")
+aoi <- st_read(dsn=GISDir, layer="CoViST_Study_Boundary_June2021") # updated to reflect decision at June 22 STSA meeting
 aoi <- st_transform(aoi, crs=3005) # change projection to Albers
-
 
 ggplot()+
   geom_sf(data=aoi, lwd=2)+
-  geom_sf(data=FA_all, aes(fill=Name))
+  geom_sf(data=FA_all, aes(fill=Focal_Area))
 
 ###--- read in secure species data
 # list.files(path=GISDir)
@@ -130,7 +134,7 @@ aoi.EO_telem_public$ELCODE <- sp.list$ELCODE[match(aoi.EO_telem_public$SCIENTIFI
 fname="data/aoi.EO_surv_public.rds"
 # write_rds(aoi.EO_surv_public, fname)
 aoi.EO_surv_public <- readRDS(fname)
-# aoi.EO_surv_public <- aoi.EO_surv_public %>% filter(SCIENTIFIC_NAME!="Ursus arctos")
+aoi.EO_surv_public <- aoi.EO_surv_public %>% filter(SCIENTIFIC_NAME %in% sp.to.use)
 
 aoi.EO_surv_public$ELCODE <- sp.list$ELCODE[match(aoi.EO_surv_public$SCIENTIFIC_NAME, sp.list$Species_Scientific)]
 # as.data.frame(aoi.EO_surv_public %>% count(ELCODE) %>% st_drop_geometry())
@@ -164,7 +168,7 @@ as.data.frame(aoi.EO_SAR_public %>% group_by(ELCODE) %>% count(ENG_NAME) %>% st_
 
 aoi.EO_SAR_public %>% filter(grepl("Great Blue Heron", ENG_NAME)) %>% count(ELCODE) # ABNGA04011
 aoi.EO_SAR_public %>% filter(grepl("Vole", ENG_NAME)) %>% count(ELCODE) # AMAFF0902B
-
+as.data.frame(aoi.EO_SAR_public %>% count(ENG_NAME))
 
 ###--- now all layers have ELCODE
 # next steps are to
@@ -216,21 +220,25 @@ aoi.CH.utm <- st_transform(aoi.CH, crs = 26910)
 aoi.CH.EO.100m <- rbind(aoi.CH.utm, aoi.EO.100m)
 aoi.CH.EO.250m <- rbind(aoi.CH.utm, aoi.EO.250m)
 
+# clip to new aoi
+aoi.utm <-  st_transform(aoi, crs = 26910) # first transform utm to ensure same projections
+aoi.CH.EO.100m <- aoi.CH.EO.100m  %>% st_intersection(aoi.utm)
+aoi.CH.EO.250m <- aoi.CH.EO.250m  %>% st_intersection(aoi.utm)
+
 sp.map.250m <- ggplot()+
   geom_sf(data = aoi.CH.EO.250m, aes(fill=Source, col=Source))+
   geom_sf(data = FA_all %>% st_transform(crs=26910), colour = "black", lwd=1, fill = NA)+
-  geom_sf(data = aoi %>% st_transform(crs=26910), fill=NA)+
+  geom_sf(data = aoi.utm, fill=NA)+
   theme(legend.position = "bottom")
 
 Cairo(file="out/species_values_mapped_250m_buffer.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
 sp.map.250m
 dev.off()
 
-
 sp.map.100m <- ggplot()+
   geom_sf(data = aoi.CH.EO.100m, aes(fill=Source, col=Source))+
   geom_sf(data = FA_all %>% st_transform(crs=26910), colour = "black", lwd=1, fill = NA)+
-  geom_sf(data = aoi %>% st_transform(crs=26910), fill=NA)+
+  geom_sf(data = aoi.utm, fill=NA)+
   theme(legend.position = "bottom")
 
 Cairo(file="out/species_values_mapped_100m_buffer.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
@@ -240,9 +248,13 @@ dev.off()
 ###--- aggregated summary of data points/polygons for each ELCODE / value, and the data sources
 aoi.CH.EO.100m$Species_Common <- sp.list$Species_Common[match(aoi.CH.EO.100m$ELCODE, sp.list$ELCODE)]
 aoi.CH.EO.100m$Species_Scientific <- sp.list$Species_Scientific[match(aoi.CH.EO.100m$ELCODE, sp.list$ELCODE)]
-as.data.frame(aoi.CH.EO.100m %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry())
+as.data.frame(aoi.CH.EO.100m %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry()) # 105 species
 
-# check on Flammulated Owl - not erroneous, but in Region 8 so should drop out when boundaries confirmed
+ggplot()+
+  geom_sf(data = aoi.CH.EO.100m %>% filter(ELCODE=="ABNSB01020"))+
+  geom_sf(data = aoi.utm, fill=NA)+
+  theme(legend.position = "bottom")
+# check on Flammulated Owl - possibly erroneous, part of Region 8 project and coming up close to eastern edge of study area
 # aoi.EO_surv_public %>% filter(ELCODE=="ABNSB01020") %>% st_drop_geometry() %>% dplyr::select(REGION, PROJECT_WEB_PAGE)
 
 write.csv(aoi.CH.EO.100m %>% group_by(Species_Common, Species_Scientific, ELCODE) %>% count(Source) %>% st_drop_geometry(),
@@ -265,7 +277,7 @@ aoi.CH.EO.250m$ELCODE <- case_when(grepl("Turtle", aoi.CH.EO.250m$Species_Common
                                    grepl("Screech", aoi.CH.EO.250m$Species_Common) ~ "ABNSB01042",
                                    TRUE ~ as.character(aoi.CH.EO.250m$ELCODE))
 
-unique(aoi.CH.EO.100m$ELCODE); unique(aoi.CH.EO.250m$ELCODE) # now only 105 ELCODE values
+unique(aoi.CH.EO.100m$ELCODE); unique(aoi.CH.EO.250m$ELCODE) # now only 103 ELCODE values
 
 ggplot()+
   geom_sf(data=FA_all)
@@ -273,28 +285,38 @@ ggplot()+
 # using 100  m buffer
 FA_value.dist <- st_nn(aoi.CH.EO.100m, FA_all %>% st_transform(crs=26910), k=1, returnDist = T)
 aoi.CH.EO.100m$Value_dist <- unlist(FA_value.dist$dist)
-aoi.CH.EO.100m$Value_type <- unlist(FA_value.dist$nn)
-aoi.CH.EO.100m$Value_type <- FA_all$Name[match(aoi.CH.EO.100m$Value_type,rownames(FA_all))]
+aoi.CH.EO.100m$Focal_Area <- unlist(FA_value.dist$nn)
+aoi.CH.EO.100m$Focal_Area <- FA_all$Focal_Area[match(aoi.CH.EO.100m$Focal_Area,rownames(FA_all))]
 
-FA_sp.richness.100m <- aoi.CH.EO.100m %>% filter(Value_dist==0) %>% group_by(Value_type) %>% count(ELCODE) %>% st_drop_geometry()
-FA_sp.richness.100m %>% count(Value_type)
+FA_sp.richness.100m <- aoi.CH.EO.100m %>% filter(Value_dist==0) %>% group_by(Focal_Area) %>% count(ELCODE) %>% st_drop_geometry()
+FA_sp.richness.100m %>% count(Focal_Area)
 FA_sp.richness.100m$Species_Common <- sp.list$Species_Common[match(FA_sp.richness.100m$ELCODE, sp.list$ELCODE)]
+FA_sp.richness.100m$Tax_Class <- taxon$Tax_Class[match(FA_sp.richness.100m$ELCODE, taxon$ELCODE)]
 write.csv(FA_sp.richness.100m, "data/FA_sprich_100m.csv", row.names = FALSE)
-st_write(aoi.CH.EO.100m,  paste0(getwd(),"/out/aoi.CH.EO.100m.shp"), delete_layer = TRUE)
 
-# unique(FA_sp.richness.100m$Species_Common)
+st_write(aoi.CH.EO.100m,  paste0(getwd(),"/out/aoi.CH.EO.100m.shp"), delete_layer = TRUE)
 
 # using 250 m buffer
 FA_value.dist.250 <- st_nn(aoi.CH.EO.250m, FA_all %>% st_transform(crs=26910), k=1, returnDist = T)
 aoi.CH.EO.250m$Value_dist <- unlist(FA_value.dist.250$dist)
-aoi.CH.EO.250m$Value_type <- unlist(FA_value.dist.250$nn)
-aoi.CH.EO.250m$Value_type <- FA_all$Name[match(aoi.CH.EO.250m$Value_type,rownames(FA_all))]
+aoi.CH.EO.250m$Focal_Area <- unlist(FA_value.dist.250$nn)
+aoi.CH.EO.250m$Focal_Area <- FA_all$Focal_Area[match(aoi.CH.EO.250m$Focal_Area,rownames(FA_all))]
 
-FA_sp.richness.250m <- aoi.CH.EO.250m %>% filter(Value_dist==0) %>% group_by(Value_type) %>% count(ELCODE) %>% st_drop_geometry()
-FA_sp.richness.250m %>% count(Value_type)
+FA_sp.richness.250m <- aoi.CH.EO.250m %>% filter(Value_dist==0) %>% group_by(Focal_Area) %>% count(ELCODE) %>% st_drop_geometry()
+FA_sp.richness.250m %>% count(Focal_Area)
 FA_sp.richness.250m$Species_Common <- sp.list$Species_Common[match(FA_sp.richness.250m$ELCODE, sp.list$ELCODE)]
+FA_sp.richness.250m$Tax_Class <- taxon$Tax_Class[match(FA_sp.richness.250m$ELCODE, taxon$ELCODE)]
 write.csv(FA_sp.richness.250m, "data/FA_sprich_250m.csv", row.names = FALSE)
 st_write(aoi.CH.EO.250m,  paste0(getwd(),"/out/aoi.CH.EO.250m.shp"), delete_layer = TRUE)
+
+
+FA_Tax.Richness <- FA_sp.richness.250m %>% group_by(Focal_Area)%>% count(Tax_Class)
+FA_Tax.Richness <- FA_Tax.Richness %>% pivot_wider(names_from = Tax_Class, values_from = n)
+FA_Tax.Richness[is.na(FA_Tax.Richness)] <- 0
+FA_Tax.Richness <- FA_Tax.Richness %>% rowwise() %>% mutate(Sp.Richness = sum(c_across(Amphibians:Fungi)))
+FA_Sp.Richness <- left_join(FA_all, FA_Tax.Richness)
+st_write(FA_Sp.Richness,  paste0(getwd(),"/out/Focal_Area.shp"), delete_layer = TRUE) # for the species richness widget
+
 
 # (4) use loop / function to extract spatial data for each value and create value specific raster (at 100 m and 250 m pixel)
 # create individual raster layers for each ELCODE and then bind into raster stack and raster brick

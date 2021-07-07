@@ -31,22 +31,46 @@ GISDir <- "//spatialfiles.bcgov/work/wlap/sry/Workarea/jburgar/CoViST"
 taxon <- read.csv("data/sp_taxon.csv", row.names = 1)
 
 # read in species list data
-sp.list <- read_excel("data/species_list_May-05-21.xlsx",sheet = 3, trim_ws = TRUE, col_types = c("text")) %>% type.convert()
+# sp.list <- read_excel("data/species_list_May-05-21.xlsx",sheet = 3, trim_ws = TRUE, col_types = c("text")) %>% type.convert()
+sp.list <- read_excel("data/species_list_Jul-06-21.xlsx",sheet = 1, trim_ws = TRUE, col_types = c("text")) %>% type.convert() # updated to 101 included species
 
 # read in Focal Area polygons
 FA.files <- list.files(path=SBDir)
-FA1_CE <- st_read(dsn=paste(SBDir,"/",FA.files[1], sep=""), layer=FA.files[1]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA1_CW <- st_read(dsn=paste(SBDir,"/",FA.files[2], sep=""), layer=FA.files[2]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA1_RL <- st_read(dsn=paste(SBDir,"/",FA.files[3], sep=""), layer=FA.files[3]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA1_SU <- st_read(dsn=paste(SBDir,"/",FA.files[4], sep=""), layer=FA.files[4]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA1_VE <- st_read(dsn=paste(SBDir,"/",FA.files[5], sep=""), layer=FA.files[5]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA2_CH <- st_read(dsn=paste(SBDir,"/",FA.files[6], sep=""), layer=FA.files[6]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA3_AG <- st_read(dsn=paste(SBDir,"/",FA.files[7], sep=""), layer=FA.files[7]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA4_NI <- st_read(dsn=paste(SBDir,"/",FA.files[8], sep=""), layer=FA.files[8]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA5_LS <- st_read(dsn=paste(SBDir,"/",FA.files[9], sep=""), layer=FA.files[9]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA6_AL <- st_read(dsn=paste(SBDir,"/",FA.files[10], sep=""), layer=FA.files[10]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA7_PA <- st_read(dsn=paste(SBDir,"/",FA.files[11], sep=""), layer=FA.files[11]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-FA8_BL <- st_read(dsn=paste(SBDir,"/",FA.files[12], sep=""), layer=FA.files[12]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+FA1_CE <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("ChilliwackEast", FA.files)], sep=""),
+                  layer=FA.files[grepl("ChilliwackEast", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA1_CW <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("ChilliwackWest", FA.files)], sep=""),
+                  layer=FA.files[grepl("ChilliwackWest", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA1_RL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Ryder", FA.files)], sep=""),
+                  layer=FA.files[grepl("Ryder", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA1_SU <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Sumas", FA.files)], sep=""),
+                  layer=FA.files[grepl("Sumas", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA1_VE <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("^((?!.*zip).)*Vedder.*$", FA.files, per=TRUE)], sep=""),
+                  layer=FA.files[grepl("^((?!.*zip).)*Vedder.*$", FA.files, per=TRUE)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA2_CH <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Cheam", FA.files)], sep=""),
+                  layer=FA.files[grepl("Cheam", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA3_AG <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Agassiz", FA.files)], sep=""),
+                  layer=FA.files[grepl("Agassiz", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA4_NI <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Nicomen", FA.files)], sep=""),
+                  layer=FA.files[grepl("Nicomen", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA5_LS <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("LowerStave", FA.files)], sep=""),
+                  layer=FA.files[grepl("LowerStave", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA6_AL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Alouette", FA.files)], sep=""),
+                  layer=FA.files[grepl("Alouette", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA7_PA <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("PittAddington", FA.files)], sep=""),
+                  layer=FA.files[grepl("PittAddington", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+
+FA8_BL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Burnaby", FA.files)], sep=""),
+                  layer=FA.files[grepl("Burnaby", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
 
 FA_all <- rbind(FA1_CE, FA1_CW, FA1_RL, FA1_SU, FA1_VE, FA2_CH, FA3_AG, FA4_NI, FA5_LS, FA6_AL, FA7_PA, FA8_BL)
 colnames(FA_all)[1] <- "Focal_Area"
@@ -57,20 +81,34 @@ FA_all$Focal_Group <- c(1,1,1,1,1,2,3,4,5,6,7,8)
 # [12]  24.562055
 # for Focal Areas <80 km2 secure species cannot be named / identified
 
-aoi <- st_read(dsn=GISDir, layer="CoViST_Study_Boundary_June2021") # updated to reflect decision at June 22 STSA meeting
+aoi <- st_read(dsn=GISDir, layer="CoViST_Study_Boundary_July2021") # updated to reflect decision at June 22 STSA meeting
 aoi <- st_transform(aoi, crs=3005) # change projection to Albers
 
 ggplot()+
-  geom_sf(data=aoi, lwd=2)+
+  geom_sf(data=aoi)+
   geom_sf(data=FA_all, aes(fill=Focal_Area))
 
 ###--- read in secure species data
+# filter by species on the species list
+# Decision to exclude: MAMU, NOGO, SPOW, FAOW, and grizzly bear on June 29, 2021 meeting
+as.data.frame(sp.list %>% count(Species_Common, ELCODE))
+sp.to.remove <- c("Flammulated Owl", "Grizzly Bear", "Marbled Murrelet", "Northern Goshawk Laingi Subspecies", "Spotted Owl")
+sp.to.use_SCI <- as.data.frame(sp.list %>% filter(!Species_Common %in% sp.to.remove) %>% count(Species_Scientific) %>% dplyr::select(Species_Scientific))
+sp.to.use_SCI <- sp.to.use_SCI$Species_Scientific
+
+sp.to.use_ELCODE <- as.data.frame(sp.list %>% filter(!Species_Common %in% sp.to.remove) %>% count(ELCODE) %>% dplyr::select(ELCODE))
+sp.to.use_ELCODE <- sp.to.use_ELCODE$ELCODE
+
 # list.files(path=GISDir)
 CH_secure <- st_read(dsn=GISDir, layer = "CRITICAL_HABITAT_SECURED_12May2021")
+CH_secure <- CH_secure %>% filter(SCIENTIFIC %in% sp.to.use)
+
 EO_secure <- st_read(dsn=GISDir, layer = "OCCR_SENS_AREA_SVW_12April2021")
+EO_secure <- EO_secure %>% filter(SCI_NAME %in% sp.to.use)
 
 # add ELCODE to CH layer (already in EO_secure)
 CH_secure$ELCODE <- sp.list$ELCODE[match(CH_secure$SCIENTIFIC, sp.list$Species_Scientific)]
+
 
 ###--- read in publicly available data
 # Critical Habitat
@@ -79,17 +117,16 @@ CH_secure$ELCODE <- sp.list$ELCODE[match(CH_secure$SCIENTIFIC, sp.list$Species_S
 # ID: 076b8c98-a3f1-429b-9dae-03faed0c6aef
 # Name: critical-habitat-for-federally-listed-species-at-risk-posted-
 
-# CH_public <- bcdc_query_geodata("076b8c98-a3f1-429b-9dae-03faed0c6aef") %>%
-#   # filter(INTERSECTS(aoi)) %>% # for some reason this isn't working
-#   collect()
-# aoi.CH_public <- CH_public %>% st_intersection(aoi)
+CH_public <- bcdc_query_geodata("076b8c98-a3f1-429b-9dae-03faed0c6aef") %>%
+  filter(BBOX(st_bbox(aoi))) %>% # works with BBOX but not INTERSECT
+  collect()
+aoi.CH_public <- CH_public %>% st_intersection(aoi)
 
-fname="data/aoi.CH_public.rds"
+# fname="data/aoi.CH_public.rds"
 # write_rds(aoi.CH_public, fname)
-aoi.CH_public <- readRDS(fname)
+# aoi.CH_public <- readRDS(fname)
 
 aoi.CH_public$ELCODE <- sp.list$ELCODE[match(aoi.CH_public$SCIENTIFIC_NAME, sp.list$Species_Scientific)]
-aoi.CH_public %>% filter(is.na(ELCODE)) %>% count(COMMON_NAME_ENGLISH)
 
 sp.list %>% filter(grepl("Dun Skipper", Species_Common)) %>% dplyr::select(Species_Common, ELCODE) # IILEP77100
 sp.list %>% filter(grepl("Bugbane", Species_Common)) %>% dplyr::select(Species_Common, ELCODE) # PDRAN0T012
@@ -100,14 +137,17 @@ aoi.CH_public$ELCODE <- case_when(grepl("Dun Skipper", aoi.CH_public$COMMON_NAME
                                   grepl("Painted Turtle", aoi.CH_public$COMMON_NAME_ENGLISH) ~ "ARAAD01015",
                                   TRUE ~ as.character(aoi.CH_public$ELCODE))
 
+aoi.CH_public %>% filter(is.na(ELCODE)) %>% count(COMMON_NAME_ENGLISH)
+aoi.CH_public %>% filter(!is.na(ELCODE)) %>% count(COMMON_NAME_ENGLISH, ELCODE) %>% st_drop_geometry()
+
+aoi.CH_public <- aoi.CH_public %>% filter(ELCODE %in% sp.to.use_ELCODE)
+unique(aoi.CH_public$COMMON_NAME_ENGLISH)
+
 ggplot()+
   geom_sf(data = CH_secure, col="red") +
   geom_sf(data = aoi.CH_public, col="blue")
 
 # Element Occurrences
-# filter by species on the species list
-sp.to.use <- as.data.frame(sp.list %>% filter(species_sci_name!="Ursus arctos") %>% count(species_sci_name) %>% dplyr::select(species_sci_name))
-sp.to.use <- sp.to.use[!is.na(sp.to.use$species_sci_name),]
 
 bcdc_search("wsi", res_format = "wms")
 # 4: Wildlife Species Inventory Telemetry Observations - Non-sensitive (other, wms, kml)
@@ -119,33 +159,30 @@ bcdc_search("wsi", res_format = "wms")
 
 # wsi telemetry data
 EO_telem_public <- bcdc_query_geodata("6d48657f-ab33-43c5-ad40-09bd56140845") %>%
-  filter(SCIENTIFIC_NAME %in% sp.to.use) %>%
+  filter(SCIENTIFIC_NAME %in% sp.to.use_SCI) %>%
   collect()
 aoi.EO_telem_public <- EO_telem_public %>% st_intersection(aoi)
 
 aoi.EO_telem_public$ELCODE <- sp.list$ELCODE[match(aoi.EO_telem_public$SCIENTIFIC_NAME, sp.list$Species_Scientific)]
 
 # wsi survey data
-# EO_surv_public <- bcdc_query_geodata("8f45a611-ce07-4e9f-a4b5-27e123972816") %>%
-#   filter(SCIENTIFIC_NAME %in% sp.to.use) %>%
-#   collect()
-# aoi.EO_surv_public <- EO_surv_public %>% st_intersection(aoi)
+EO_surv_public <- bcdc_query_geodata("8f45a611-ce07-4e9f-a4b5-27e123972816") %>%
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
+aoi.EO_surv_public <- EO_surv_public %>% st_intersection(aoi)
 
-fname="data/aoi.EO_surv_public.rds"
-# write_rds(aoi.EO_surv_public, fname)
-aoi.EO_surv_public <- readRDS(fname)
-aoi.EO_surv_public <- aoi.EO_surv_public %>% filter(SCIENTIFIC_NAME %in% sp.to.use)
 
 aoi.EO_surv_public$ELCODE <- sp.list$ELCODE[match(aoi.EO_surv_public$SCIENTIFIC_NAME, sp.list$Species_Scientific)]
-# as.data.frame(aoi.EO_surv_public %>% count(ELCODE) %>% st_drop_geometry())
+as.data.frame(aoi.EO_surv_public %>% count(SPECIES_ENGLISH_NAME, ELCODE) %>% st_drop_geometry())
 aoi.EO_surv_public %>% filter(is.na(ELCODE)) %>% count(SPECIES_ENGLISH_NAME) # great blue heron and southern
 # need to provide ELCODE for Great Blue Heron and Southern Red-Backed Vole
 
 aoi.EO_surv_public$ELCODE <- case_when(grepl("Great Blue Heron", aoi.EO_surv_public$SPECIES_ENGLISH_NAME) ~ "ABNGA04011",
                                        grepl("Southern Red-backed Vole", aoi.EO_surv_public$SPECIES_ENGLISH_NAME) ~ "AMAFF0902B",
                                        TRUE ~ as.character(aoi.EO_surv_public$ELCODE))
-# now all species have ELCODE value
+aoi.EO_surv_public <- aoi.EO_surv_public %>% filter(ELCODE %in% sp.to.use_ELCODE)
 
+# now all species have ELCODE value
 as.data.frame(aoi.EO_surv_public %>% group_by(ELCODE) %>% count(SPECIES_ENGLISH_NAME) %>% st_drop_geometry())
 
 
@@ -155,20 +192,20 @@ bcdc_search("CDC BIOTICS", res_format = "wms")
 # 1: Species and Ecosystems at Risk - Publicly Available Occurrences - CDC (other, wms, kml)
 # ID: 0e035e55-f257-458f-9a96-80c01c69d389
 # Name: species-and-ecosystems-at-risk-publicly-available-occurrences-cdc
-sp.to.use2 <- as.data.frame(sp.list %>% count(ELCODE) %>% dplyr::select(ELCODE))
-sp.to.use2 <- sp.to.use2[!is.na(sp.to.use2$ELCODE),]
 
 
 EO_SAR_public <- bcdc_query_geodata("0e035e55-f257-458f-9a96-80c01c69d389") %>%
-    filter(ELCODE %in% sp.to.use2) %>%
-    collect()
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
 aoi.EO_SAR_public <- EO_SAR_public %>% st_intersection(aoi)
 
 as.data.frame(aoi.EO_SAR_public %>% group_by(ELCODE) %>% count(ENG_NAME) %>% st_drop_geometry())
+aoi.EO_SAR_public <- aoi.EO_SAR_public %>% filter(ELCODE %in% sp.to.use_ELCODE)
 
-aoi.EO_SAR_public %>% filter(grepl("Great Blue Heron", ENG_NAME)) %>% count(ELCODE) # ABNGA04011
-aoi.EO_SAR_public %>% filter(grepl("Vole", ENG_NAME)) %>% count(ELCODE) # AMAFF0902B
+# aoi.EO_SAR_public %>% filter(grepl("Great Blue Heron", ENG_NAME)) %>% count(ELCODE) # ABNGA04011
+# aoi.EO_SAR_public %>% filter(grepl("Vole", ENG_NAME)) %>% count(ELCODE) # AMAFF0902B
 as.data.frame(aoi.EO_SAR_public %>% count(ENG_NAME))
+
 
 ###--- now all layers have ELCODE
 # next steps are to
@@ -250,13 +287,6 @@ aoi.CH.EO.100m$Species_Common <- sp.list$Species_Common[match(aoi.CH.EO.100m$ELC
 aoi.CH.EO.100m$Species_Scientific <- sp.list$Species_Scientific[match(aoi.CH.EO.100m$ELCODE, sp.list$ELCODE)]
 as.data.frame(aoi.CH.EO.100m %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry()) # 105 species
 
-ggplot()+
-  geom_sf(data = aoi.CH.EO.100m %>% filter(ELCODE=="ABNSB01020"))+
-  geom_sf(data = aoi.utm, fill=NA)+
-  theme(legend.position = "bottom")
-# check on Flammulated Owl - possibly erroneous, part of Region 8 project and coming up close to eastern edge of study area
-# aoi.EO_surv_public %>% filter(ELCODE=="ABNSB01020") %>% st_drop_geometry() %>% dplyr::select(REGION, PROJECT_WEB_PAGE)
-
 write.csv(aoi.CH.EO.100m %>% group_by(Species_Common, Species_Scientific, ELCODE) %>% count(Source) %>% st_drop_geometry(),
           "data/SCP_values_spatial_sources.csv", row.names = FALSE)
 
@@ -264,20 +294,22 @@ write.csv(aoi.CH.EO.100m %>% group_by(Species_Common, Species_Scientific, ELCODE
 # use ELCODE, but first need to group painted turtle, peregrine falcon, western screech-owl (have 2 ELCODE for species and sub-species)
 aoi.CH.EO.100m %>% filter(grepl("Falcon|Screech|Turtle", Species_Common)) %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry()
 
-aoi.CH.EO.100m$ELCODE <- case_when(grepl("Turtle", aoi.CH.EO.100m$Species_Common) ~ "ARAAD01015",
-                                   grepl("Falcon", aoi.CH.EO.100m$Species_Common) ~ "ABNKD06071",
-                                   grepl("Screech", aoi.CH.EO.100m$Species_Common) ~ "ABNSB01042",
-                                   TRUE ~ as.character(aoi.CH.EO.100m$ELCODE))
+# aoi.CH.EO.100m$ELCODE <- case_when(grepl("Turtle", aoi.CH.EO.100m$Species_Common) ~ "ARAAD01015",
+#                                    grepl("Falcon", aoi.CH.EO.100m$Species_Common) ~ "ABNKD06071",
+#                                    grepl("Screech", aoi.CH.EO.100m$Species_Common) ~ "ABNSB01042",
+#                                    TRUE ~ as.character(aoi.CH.EO.100m$ELCODE))
 
 # bit hacky but replicating the steps here to keep spatial objects consistent
 aoi.CH.EO.250m$Species_Common <- sp.list$Species_Common[match(aoi.CH.EO.250m$ELCODE, sp.list$ELCODE)]
 aoi.CH.EO.250m$Species_Scientific <- sp.list$Species_Scientific[match(aoi.CH.EO.250m$ELCODE, sp.list$ELCODE)]
-aoi.CH.EO.250m$ELCODE <- case_when(grepl("Turtle", aoi.CH.EO.250m$Species_Common) ~ "ARAAD01015",
-                                   grepl("Falcon", aoi.CH.EO.250m$Species_Common) ~ "ABNKD06071",
-                                   grepl("Screech", aoi.CH.EO.250m$Species_Common) ~ "ABNSB01042",
-                                   TRUE ~ as.character(aoi.CH.EO.250m$ELCODE))
 
-unique(aoi.CH.EO.100m$ELCODE); unique(aoi.CH.EO.250m$ELCODE) # now only 103 ELCODE values
+aoi.CH.EO.250m %>% filter(grepl("Falcon|Screech|Turtle", Species_Common)) %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry()
+# aoi.CH.EO.250m$ELCODE <- case_when(grepl("Turtle", aoi.CH.EO.250m$Species_Common) ~ "ARAAD01015",
+#                                    grepl("Falcon", aoi.CH.EO.250m$Species_Common) ~ "ABNKD06071",
+#                                    grepl("Screech", aoi.CH.EO.250m$Species_Common) ~ "ABNSB01042",
+#                                    TRUE ~ as.character(aoi.CH.EO.250m$ELCODE))
+
+unique(aoi.CH.EO.100m$ELCODE); unique(aoi.CH.EO.250m$ELCODE) # now only 101 ELCODE values
 
 ggplot()+
   geom_sf(data=FA_all)
@@ -305,6 +337,7 @@ aoi.CH.EO.250m$Focal_Area <- FA_all$Focal_Area[match(aoi.CH.EO.250m$Focal_Area,r
 FA_sp.richness.250m <- aoi.CH.EO.250m %>% filter(Value_dist==0) %>% group_by(Focal_Area) %>% count(ELCODE) %>% st_drop_geometry()
 FA_sp.richness.250m %>% count(Focal_Area)
 FA_sp.richness.250m$Species_Common <- sp.list$Species_Common[match(FA_sp.richness.250m$ELCODE, sp.list$ELCODE)]
+# unique(FA_sp.richness.250m$Species_Common); unique(FA_sp.richness.100m$Species_Common)
 FA_sp.richness.250m$Tax_Class <- taxon$Tax_Class[match(FA_sp.richness.250m$ELCODE, taxon$ELCODE)]
 write.csv(FA_sp.richness.250m, "data/FA_sprich_250m.csv", row.names = FALSE)
 st_write(aoi.CH.EO.250m,  paste0(getwd(),"/out/aoi.CH.EO.250m.shp"), delete_layer = TRUE)

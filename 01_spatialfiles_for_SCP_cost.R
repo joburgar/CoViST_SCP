@@ -183,10 +183,6 @@ ggplot()+
   geom_sf(data=aoi) +
   geom_sf(data=aoi.PMBC, aes(col=REGIONAL_D))
 
-
-aoi.PMBC %>% filter(grepl("Fraser", REGIONAL_D)) %>% filter(OWNER_TYPE=="Private") %>% count(PARCEL_CLA) %>% st_drop_geometry()
-aoi.PMBC %>% filter(grepl("Vancouver", REGIONAL_D)) %>% filter(OWNER_TYPE=="Private") %>% count(PARCEL_CLA) %>% st_drop_geometry()
-
 PMBC.parcels.area <- aoi.PMBC.OWN.union%>% st_drop_geometry()
 PMBC.parcels.area$percSA <- PMBC.parcels.area$areakm2 /(st_area(aoi) * 1e-6) * 100  #  divide by study area
 PMBC.parcels.area <- drop_units(PMBC.parcels.area)
@@ -256,11 +252,26 @@ ggplot()+
   geom_sf(data=FCO.PCMB.diff.muni, col="red")
 
 # RECOMMEND USING PCMB Municipal as Municipal layer
-# remove 'Park' PARCEL_CLASS from Municipal 'layer and 'cost' layer, include in conservation layer
 
-rm(aoi.PMBC) # remove this large file for housekeeping
+# remove large files for housekeeping
+rm(aoi.PMBC)
+rm(aoi.FCO)
+
+###--- now merge FCO and PCMB layers to create one cost layer
+names(aoi.FCO.Final.union)
+names(aoi.PMBC.FINAL.union)
+colnames(aoi.FCO.Final.union)[1] <- "Ownership"
+colnames(aoi.PMBC.FINAL.union)[1] <- "Ownership"
+
+rbind(aoi.FCO.Final.union, aoi.PMBC.FINAL.union)
+
 
 ##############################################################################################
+###--- now start looking into "lands that contribute to conservation" layers
+# thought is to include each of the different types of conservation protections and then stack the rasters
+# this may give an idea of the "strength" of protection (i.e., >1 mechanism = stronger protection)
+
+
 # Wildlife Habitat Area
 # bcdc_search("Wildlife habitat area", res_format = "wms")
 # 1: Wildlife Habitat Areas - Approved (other, wms, kml)
@@ -304,5 +315,5 @@ bcdc_search("contribute to conservation", res_format = "wms")
 fname="data/aoi.FCO.rds"
 # write_rds(aoi.FCO, fname)
 
-# save.image("data/spatialfiles_for_SCP_cost.RData")
+save.image("data/spatialfiles_for_SCP_cost.RData")
 # load("data/spatialfiles_for_SCP_cost.RData")

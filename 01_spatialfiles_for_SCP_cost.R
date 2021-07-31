@@ -104,7 +104,6 @@ FCO_area$OWNERSHIP_DESCRIPTION <- FCO.type$OWNERSHIP_DESCRIPTION[match(FCO_area$
 FCO_area <- drop_units(FCO_area)
 write.csv(FCO_area, "out/aoi.FCO_area.csv", row.names = FALSE)
 
-
 # to union each ownership type, considering new groupings
 # Crown Provincial = 60,61,62,65,66,67,68,69,72,74,75,77,79
 # Federal = 53,54
@@ -263,8 +262,48 @@ names(aoi.PMBC.FINAL.union)
 colnames(aoi.FCO.Final.union)[1] <- "Ownership"
 colnames(aoi.PMBC.FINAL.union)[1] <- "Ownership"
 
-rbind(aoi.FCO.Final.union, aoi.PMBC.FINAL.union)
+aoi.FCO.Final.union$Source <- "FCO"
+aoi.PMBC.FINAL.union$Source <- "PMBC"
 
+# summary(lengths(st_overlaps(aoi.FCO.Final.union, aoi.FCO.Final.union)))
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+# 2.000   3.000   3.500   3.667   4.750   5.000
+
+aoi.FCO.Final.union$Ownership <- case_when(aoi.FCO.Final.union$Ownership=="Unknown" ~ "Private",
+                                  TRUE ~ as.character(aoi.FCO.Final.union$Ownership))
+
+aoi.Tenure <- rbind(aoi.FCO.Final.union %>% filter(Ownership %in% c("Provincial", "Federal", "First Nation")),
+                    aoi.PMBC.FINAL.union %>% filter(Ownership %in% c("Private", "Municipal")))
+
+aoi.Tenure %>% arrange(Ownership) %>% st_drop_geometry()
+
+levels(aoi.Tenure$Ownership)
+aoi.Tenure$Ownership <- factor(aoi.Tenure$Ownership,
+                               levels = c("Provincial","Federal","First Nation","Municipal","Private"))
+
+ggplot()+
+  geom_sf(data = aoi) +
+  geom_sf(data = aoi.Tenure, aes(fill=Ownership), lwd=0) +
+  scale_fill_manual(values = (pnw_palette("Starfish",5)))
+
+# remove potential polygon slivers
+# maybe this doesn't matter as will be converting to raster
+# also taking a long time, so opt to disregard for now
+# instead just redo dissolve as before, for each ownership type into single multipolygon feature
+# to union each ownership, resolving category overlaps (should only be applicable for Private now)
+aoi.Tenure <- aoi.Tenure %>% group_by(Ownership) %>%
+  # st_snap(x = ., y = ., tolerance = 0.1) %>%
+  summarise(across(geometry, ~ st_union(.)), .groups = "keep") %>%
+  summarise(across(geometry, ~ st_combine(.)))
+
+# calculate area per ownership type
+aoi.Tenure$areakm2 <- st_area(aoi.Tenure)* 1e-6
+aoi.Tenure$percSA <- aoi.Tenure$areakm2 /(st_area(aoi) * 1e-6) * 100  #  divide by study area
+aoi.Tenure <- drop_units(aoi.Tenure)
+aoi.Tenure %>% st_drop_geometry()
+
+# next step is to fill in the gaps as layer with "unknown" or "other" tenure type
+# use st_sym_differnce to find the gaps
 
 ##############################################################################################
 ###--- now start looking into "lands that contribute to conservation" layers

@@ -17,7 +17,7 @@
 
 # Load Packages
 list.of.packages <- c("tidyverse", "lubridate","bcdata", "bcmaps","sp","sf", "rgdal", "readxl", "Cairo",
-                      "OpenStreetMap", "ggmap", "nngeo", "raster", "units", "PNWColors")
+                      "OpenStreetMap", "ggmap", "nngeo", "raster", "units", "PNWColors","fasterize")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -301,58 +301,72 @@ aoi.Tenure$areakm2 <- st_area(aoi.Tenure)* 1e-6
 aoi.Tenure$percSA <- aoi.Tenure$areakm2 /(st_area(aoi) * 1e-6) * 100  #  divide by study area
 aoi.Tenure <- drop_units(aoi.Tenure)
 aoi.Tenure %>% st_drop_geometry()
-
+aoi.Tenure %>% summarise(sum(percSA)) %>% st_drop_geometry() # 98.1% - still missing some slivers and plots
 # next step is to fill in the gaps as layer with "unknown" or "other" tenure type
-# use st_sym_differnce to find the gaps
+# use st_differnce to find the gaps
+# aoi.Tenure2 <- aoi.Tenure %>% st_combine() %>% st_union()
+# st_area(aoi.Tenure2) / st_area(aoi) * 100 # 98.11% - still missing some slivers and plots
 
-##############################################################################################
-###--- now start looking into "lands that contribute to conservation" layers
-# thought is to include each of the different types of conservation protections and then stack the rasters
-# this may give an idea of the "strength" of protection (i.e., >1 mechanism = stronger protection)
-
-
-# Wildlife Habitat Area
-# bcdc_search("Wildlife habitat area", res_format = "wms")
-# 1: Wildlife Habitat Areas - Approved (other, wms, kml)
-# ID: b19ff409-ef71-4476-924e-b3bcf26a0127
-
-# aoi.WHA <- bcdc_query_geodata("b19ff409-ef71-4476-924e-b3bcf26a0127") %>%
-#   # filter(INTERSECTS(aoi)) %>% # for some reason this isn't working
-#   collect()
-# aoi.WHA <- aoi.WHA %>% st_intersection(aoi)
-
-# fname="data/aoi.WHA.rds"
-# write_rds(aoi.WHA, fname)
-aoi.WHA <- readRDS(fname)
-
-aoi.WHA %>% count(COMMON_SPECIES_NAME)
-aoi.WHA %>% group_by(COMMON_SPECIES_NAME) %>% summarise(sum(HECTARES))
-
+aoi.Tenure.unknown <- st_difference(aoi, st_union(aoi.Tenure))
+st_area(aoi.Tenure.unknown) * 1e-6 # 188.4224 [m^2]
+# aoi.Tenure.unknown seems to be the correct size but a huge file so possibly made up of slivers
+# might be better to just raster without and then any "0" pixels (if there are any) can be called "unknown"
 
 ggplot()+
   geom_sf(data=aoi)+
-  geom_sf(data=aoi.WHA, aes(fill=COMMON_SPECIES_NAME))
+  geom_sf(data=aoi.Tenure.unknown)
 
-WHA_FCO <- st_nn(aoi.WHA, aoi.FCO, k=1, returnDist = T)
+# remove large files for housekeeping
+rm(aoi.FCO.OWN.union)
+rm(aoi.PMBC.OWN.union)
 
-aoi.WHA$FCO_type <- unlist(WHA_FCO$nn)
-aoi.WHA %>% dplyr::select(COMMON_SPECIES_NAME, FCO_type)
-aoi.WHA$FCO_type <- aoi.FCO$OWNERSHIP_DESCRIPTION[match(aoi.WHA$FCO_type,rownames(aoi.FCO))]
-write.csv(as.data.frame(aoi.WHA %>% group_by(COMMON_SPECIES_NAME) %>% count(FCO_type) %>% st_drop_geometry()), "out/WHA_FCO.csv", row.names = F)
-summary(sta_sf)
+###---
+# create one raster for the cost layer
+# do for 100 m and 250 m polygon layers at 100 m and 250 m pixel sizes
 
-# Forest Cover Ownership layer
-bcdc_search("contribute to conservation", res_format = "wms")
-# 1: Generalized Forest Cover Ownership (wms, kml, other)
-# ID: 5fc4e8ce-dd1d-44fd-af17-e0789cf65e4e
+head(aoi.Tenure) %>% st_drop_geometry()
+# Ownership    areakm2 percSA
+# 1 Provincial    6017.  69.7
+# 2 Federal         78.2  0.906
+# 3 First Nation   119.   1.38
+# 4 Municipal      340.   3.94
+# 5 Private       1913.  22.2
 
-# aoi.FCO <- bcdc_query_geodata("5fc4e8ce-dd1d-44fd-af17-e0789cf65e4e") %>%  # Forest Cover Ownership
-#   #filter(INTERSECTS(aoi)) %>% # for some reason this isn't working
-#   collect()
-# aoi.FCO <- aoi.FCO %>% st_intersection(aoi)
+# currently set with order of 1 (Provincial) to 5 (Private)
+# want to keep this order and, similar to round 1 analysis, default to "easier" cost for pixels
+# this means use the fun="min" option in fasterize
 
-fname="data/aoi.FCO.rds"
-# write_rds(aoi.FCO, fname)
+r100m <- raster(ext=extent(aoi), crs=26910, res=c(100,100))
+r250m <- raster(ext=extent(aoi), crs=26910, res=c(250,250))
 
+r100m_cost <- fasterize(aoi.Tenure, r100m, field="Ownership", fun="min")
+r250m_cost <- fasterize(aoi.Tenure, r250m, field="Ownership", fun="min")
+
+# to do a check and calculate area for each cost group
+
+r100m_area <- tapply(area(r100m_cost), r100m_cost[], sum)
+r100m_area * 1e-6; (r100m_area / st_area(aoi))*100
+
+r250m_area <- tapply(area(r250m_cost), r250m_cost[], sum)
+r250m_area * 1e-6; (r250m_area / st_area(aoi))*100
+
+
+# produce raster tiff files and maps
+pal <- pnw_palette("Starfish",5) # colour scheme for plotting
+
+Cairo(file="out/r100m_cost.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
+plot(r100m_cost, col=pal)
+dev.off()
+
+Cairo(file="out/r250m_cost.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
+plot(r250m_cost, col=pal)
+dev.off()
+
+writeRaster(r100m_cost, file="out/r100m_cost.tif", overwrite=TRUE)
+writeRaster(r250m_cost, file="out/r250m_cost.tif", overwrite=TRUE)
+
+################################################################################
 save.image("data/spatialfiles_for_SCP_cost.RData")
 # load("data/spatialfiles_for_SCP_cost.RData")
+################################################################################
+

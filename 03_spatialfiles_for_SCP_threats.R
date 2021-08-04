@@ -55,12 +55,9 @@ threats %>% count(Impact)
 threats$Impact2 <- recode(threats$Impact, `High-Low`="High", `High-Medium`="High", `Medium-Low`="Medium", `Very High-High`="High", `Very High`="High", `Not Calculated` = "Unknown")
 threats$Impact2 <- threats$Impact2 %>% replace_na("Unknown")
 
-pnw(casca)
-
 threats %>% count(Impact2)
-
 threats %>% count(ELCODE)
-nrow(threats)
+
 nrow(threats %>% filter(!is.na(sub_threat_desc)))
 threats_sub <- threats %>% filter(!is.na(sub_threat_desc))
 threats_sub %>% count(Impact)
@@ -137,6 +134,9 @@ Cairo(file="out/value.top.threat.hist.PNG", type="png", width=3000, height=2200,
 value.top.threat.hist
 dev.off()
 
+FA_Threats <- left_join(FA_SpRich %>% select(Focl_Ar, Fcl_Grp), FA.threat.impact)
+colnames(FA_Threats)[3:6] <- c("Thrt_No","Threat","Impact","Count")
+st_write(FA_Threats, paste0(getwd(),"/out/Focal_Area_Threats.shp"), delete_layer = TRUE) # for the threat widget
 
 ####################################################################################
 ###--- incorporate PP threat assessment

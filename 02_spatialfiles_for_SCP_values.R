@@ -35,58 +35,61 @@ taxon <- read.csv("data/sp_taxon.csv", row.names = 1)
 sp.list <- read_excel("data/species_list_Jul-06-21.xlsx",sheet = 1, trim_ws = TRUE, col_types = c("text")) %>% type.convert() # updated to 101 included species
 
 # read in Focal Area polygons
-FA.files <- list.files(path=SBDir)
-FA1_CE <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("ChilliwackEast", FA.files)], sep=""),
-                  layer=FA.files[grepl("ChilliwackEast", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA1_CW <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("ChilliwackWest", FA.files)], sep=""),
-                  layer=FA.files[grepl("ChilliwackWest", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA1_RL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Ryder", FA.files)], sep=""),
-                  layer=FA.files[grepl("Ryder", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA1_SU <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Sumas", FA.files)], sep=""),
-                  layer=FA.files[grepl("Sumas", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA1_VE <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("^((?!.*zip).)*Vedder.*$", FA.files, per=TRUE)], sep=""),
-                  layer=FA.files[grepl("^((?!.*zip).)*Vedder.*$", FA.files, per=TRUE)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA2_CH <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Cheam", FA.files)], sep=""),
-                  layer=FA.files[grepl("Cheam", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA3_AG <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Agassiz", FA.files)], sep=""),
-                  layer=FA.files[grepl("Agassiz", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA4_NI <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Nicomen", FA.files)], sep=""),
-                  layer=FA.files[grepl("Nicomen", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA5_LS <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("LowerStave", FA.files)], sep=""),
-                  layer=FA.files[grepl("LowerStave", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA6_AL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Alouette", FA.files)], sep=""),
-                  layer=FA.files[grepl("Alouette", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA7_PA <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("PittAddington", FA.files)], sep=""),
-                  layer=FA.files[grepl("PittAddington", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA8_BL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Burnaby", FA.files)], sep=""),
-                  layer=FA.files[grepl("Burnaby", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
-
-FA_all <- rbind(FA1_CE, FA1_CW, FA1_RL, FA1_SU, FA1_VE, FA2_CH, FA3_AG, FA4_NI, FA5_LS, FA6_AL, FA7_PA, FA8_BL)
-colnames(FA_all)[1] <- "Focal_Area"
-FA_all$Focal_Group <- c(1,1,1,1,1,2,3,4,5,6,7,8)
+# FA.files <- list.files(path=SBDir)
+# FA1_CE <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("ChilliwackEast", FA.files)], sep=""),
+#                   layer=FA.files[grepl("ChilliwackEast", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA1_CW <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("ChilliwackWest", FA.files)], sep=""),
+#                   layer=FA.files[grepl("ChilliwackWest", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA1_RL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Ryder", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Ryder", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA1_SU <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Sumas", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Sumas", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA1_VE <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("^((?!.*zip).)*Vedder.*$", FA.files, per=TRUE)], sep=""),
+#                   layer=FA.files[grepl("^((?!.*zip).)*Vedder.*$", FA.files, per=TRUE)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA2_CH <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Cheam", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Cheam", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA3_AG <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Agassiz", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Agassiz", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA4_NI <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Nicomen", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Nicomen", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA5_LS <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("LowerStave", FA.files)], sep=""),
+#                   layer=FA.files[grepl("LowerStave", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA6_AL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Alouette", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Alouette", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA7_PA <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("PittAddington", FA.files)], sep=""),
+#                   layer=FA.files[grepl("PittAddington", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA8_BL <- st_read(dsn=paste(SBDir,"/",FA.files[grepl("Burnaby", FA.files)], sep=""),
+#                   layer=FA.files[grepl("Burnaby", FA.files)]) %>% dplyr::select(Name) %>% st_transform(crs=3005)
+#
+# FA_all <- rbind(FA1_CE, FA1_CW, FA1_RL, FA1_SU, FA1_VE, FA2_CH, FA3_AG, FA4_NI, FA5_LS, FA6_AL, FA7_PA, FA8_BL)
+# colnames(FA_all)[1] <- "Focal_Area"
+# FA_all$Focal_Group <- c(1,1,1,1,1,2,3,4,5,6,7,8)
 
 # FA_all %>% st_transform(crs=26910) %>% st_area()/1000000
 # [1] 273.201320 205.137750 115.794737  98.822113  89.053201  35.848892 107.813251 112.969786  29.449039   6.543545  82.617137
 # [12]  24.562055
 # for Focal Areas <80 km2 secure species cannot be named / identified
 
+# once FA polygon file has been created, can load previously created file
+FA_all <- st_read(dsn=paste(getwd(),"/out", sep=""), layer="Focal_Area")
+
 aoi <- st_read(dsn=GISDir, layer="CoViST_Study_Boundary_July2021") # updated to reflect decision at June 22 STSA meeting
 aoi <- st_transform(aoi, crs=3005) # change projection to Albers
 
 ggplot()+
   geom_sf(data=aoi)+
-  geom_sf(data=FA_all, aes(fill=Focal_Area))
+  geom_sf(data=FA_all, aes(fill=Focl_Ar))
 
 ###--- read in secure species data
 # filter by species on the species list
@@ -101,10 +104,10 @@ sp.to.use_ELCODE <- sp.to.use_ELCODE$ELCODE
 
 # list.files(path=GISDir)
 CH_secure <- st_read(dsn=GISDir, layer = "CRITICAL_HABITAT_SECURED_12May2021")
-CH_secure <- CH_secure %>% filter(SCIENTIFIC %in% sp.to.use)
+CH_secure <- CH_secure %>% filter(SCIENTIFIC %in% sp.to.use_SCI)
 
 EO_secure <- st_read(dsn=GISDir, layer = "OCCR_SENS_AREA_SVW_12April2021")
-EO_secure <- EO_secure %>% filter(SCI_NAME %in% sp.to.use)
+EO_secure <- EO_secure %>% filter(SCI_NAME %in% sp.to.use_SCI)
 
 # add ELCODE to CH layer (already in EO_secure)
 CH_secure$ELCODE <- sp.list$ELCODE[match(CH_secure$SCIENTIFIC, sp.list$Species_Scientific)]
@@ -285,7 +288,7 @@ dev.off()
 ###--- aggregated summary of data points/polygons for each ELCODE / value, and the data sources
 aoi.CH.EO.100m$Species_Common <- sp.list$Species_Common[match(aoi.CH.EO.100m$ELCODE, sp.list$ELCODE)]
 aoi.CH.EO.100m$Species_Scientific <- sp.list$Species_Scientific[match(aoi.CH.EO.100m$ELCODE, sp.list$ELCODE)]
-as.data.frame(aoi.CH.EO.100m %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry()) # 105 species
+as.data.frame(aoi.CH.EO.100m %>% group_by(Species_Common) %>% count(ELCODE) %>% st_drop_geometry()) # 98 species
 
 write.csv(aoi.CH.EO.100m %>% group_by(Species_Common, Species_Scientific, ELCODE) %>% count(Source) %>% st_drop_geometry(),
           "data/SCP_values_spatial_sources.csv", row.names = FALSE)
@@ -318,7 +321,7 @@ ggplot()+
 FA_value.dist <- st_nn(aoi.CH.EO.100m, FA_all %>% st_transform(crs=26910), k=1, returnDist = T)
 aoi.CH.EO.100m$Value_dist <- unlist(FA_value.dist$dist)
 aoi.CH.EO.100m$Focal_Area <- unlist(FA_value.dist$nn)
-aoi.CH.EO.100m$Focal_Area <- FA_all$Focal_Area[match(aoi.CH.EO.100m$Focal_Area,rownames(FA_all))]
+aoi.CH.EO.100m$Focal_Area <- FA_all$Focl_Ar[match(aoi.CH.EO.100m$Focal_Area,rownames(FA_all))]
 
 FA_sp.richness.100m <- aoi.CH.EO.100m %>% filter(Value_dist==0) %>% group_by(Focal_Area) %>% count(ELCODE) %>% st_drop_geometry()
 FA_sp.richness.100m %>% count(Focal_Area)

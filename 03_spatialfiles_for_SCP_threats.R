@@ -51,9 +51,11 @@ threats %>% group_by(Species_Common, Severity, Impact) %>% count(threat_desc, su
 as.data.frame(threats %>% group_by(threat_desc) %>% count(Impact))
 threats %>% count(Impact)
 
-# create a conslidated Impact field where a range of impact values becomes the high end, very high becomes high, and unknown is the field if NA, unknown or not calculated
+# create a consolidated Impact field where a range of impact values becomes the high end, very high becomes high, and unknown is the field if NA, unknown or not calculated
 threats$Impact2 <- recode(threats$Impact, `High-Low`="High", `High-Medium`="High", `Medium-Low`="Medium", `Very High-High`="High", `Very High`="High", `Not Calculated` = "Unknown")
 threats$Impact2 <- threats$Impact2 %>% replace_na("Unknown")
+
+pnw(casca)
 
 threats %>% count(Impact2)
 
@@ -134,3 +136,71 @@ dev.off()
 Cairo(file="out/value.top.threat.hist.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
 value.top.threat.hist
 dev.off()
+
+
+####################################################################################
+###--- incorporate PP threat assessment
+# MasterList_SAR_PriorityPlaces_Threats_RollUp_Final_Share
+# load Priority Place threats list
+pp.threats <- read_excel("data/MasterList_SAR_PriorityPlaces_Threats_RollUp_Final_Share.xlsx",sheet = 10, trim_ws = TRUE, col_types = c("text")) %>% type.convert()
+head(pp.threats)
+unique(pp.threats$`Scientific Name`)
+
+# create a threat num category for simplicity when joining
+glimpse(pp.threats)
+
+pp.threats$threat_num <- as.numeric(substr(pp.threats$`Threat Category`,1,1))
+pp.threats$threat_num <- case_when(pp.threats$`Threat Category`=="10 Geological events" ~ 10,
+                                   pp.threats$`Threat Category`=="11 Climate Change & severe weather" ~ 11,
+                                   TRUE ~ as.numeric(pp.threats$threat_num))
+pp.threats$threat_num <- as.integer(pp.threats$threat_num)
+
+# check that both threat num and threat categories are the same
+pp.threats %>% group_by(threat_num) %>% count(`Threat Category`)
+FA_Threats %>% group_by(threat_num) %>% count(threat_desc)
+orig_threat_splist <- unique(FA_Threats$ELCODE)
+
+glimpse(FA_Threats)
+glimpse(pp.threats)
+colnames(pp.threats)[1] <-c("Species_Common")
+pp.threats %>% filter(ELCODE %in% orig_threat_splist) %>% count(Species_Common)
+
+# now create a similar FA_Threats object to compare
+FA_PP_Threats <- left_join(FA_Value %>% dplyr::select(Focl_Ar, ELCODE),
+                        pp.threats %>% dplyr::select(ELCODE, Species_Common, `Scientific Name`, threat_num, `Threat Category`, `Threat Impact`, Rating),
+                        by="ELCODE")
+
+
+FA_PP_Threats <- FA_PP_Threats %>% group_by(Focl_Ar, ELCODE, Species_Common, `Scientific Name`,threat_num) %>% summarise(Rating=sum(Rating))
+FA_Threats %>% filter(ELCODE=="AAABH01021") %>% group_by(Focl_Ar, threat_num) %>% count(Impact2) # Northern Red-legged Frog
+FA_PP_Threats %>% filter(ELCODE=="AAABH01021") %>% filter(!is.na(Rating)) %>% group_by(Focl_Ar, threat_num) %>% summarise(Rating) # Northern Red-legged Frog
+glimpse(FA_PP_Threats)
+
+
+# only the highest impact rating per species - need to arrange dataset first
+FA.PP.threat.impact <-FA_PP_Threats %>% group_by(Focl_Ar, threat_num) %>% filter(!is.na(Rating))
+FA.PP.threat.impact %>% filter(is.na(Rating))
+FA.PP.threat.impact$threat_abr <- FA.threat.impact$threat_abr[match(FA.PP.threat.impact$threat_num, FA.threat.impact$threat_num)]
+
+threat_abr_order <- levels(FA.threat.impact$threat_abr)
+FA.PP.threat.impact$threat_abr <- factor(FA.PP.threat.impact$threat_abr, levels = threat_abr_order)
+
+
+PP.value.threat.hist <- ggplot(data = FA.PP.threat.impact, # %>% filter(Impact2 %in% c("High", "Medium")),
+                            aes(x = threat_abr, y = Rating, fill=Species_Common)) +
+  geom_bar(stat = "identity") +
+  #scale_fill_manual(values = (pnw_palette("Bay",2)))+
+  scale_fill_manual(values = rev(pnw_palette("Bay",26)))+
+  theme_classic() + ylab("Threat Rating (summed by value) with Associated Threat") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10))+
+  theme(axis.title.y = element_text(size = 14))+
+  theme(axis.title.x = element_blank())+
+  theme(legend.title = element_blank(), legend.position = "bottom") +
+  facet_wrap(~Focl_Ar, ncol=3)
+
+Cairo(file="out/PP.value.threat.hist.PNG", type="png", width=4000, height=2400,pointsize=15,bg="white",dpi=300)
+PP.value.threat.hist
+dev.off()
+
+####################################################################################
+

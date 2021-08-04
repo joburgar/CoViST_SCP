@@ -113,6 +113,8 @@ FA.threat.impact$threat_abr <- recode(FA.threat.impact$threat_desc,
 # the colour coding depicts the impact of the threat (if calculated)
 # threats ordered by highest to lowest number of associated values overall (same per graph for consistency)
 
+col <- rev(pnw_palette("Bay"))
+
 value.threat.hist <- ggplot(data = FA.threat.impact, # %>% filter(Impact2 %in% c("High", "Medium")),
                             aes(x = threat_abr, y = n, fill=Impact2)) +
   geom_bar(stat = "identity") +

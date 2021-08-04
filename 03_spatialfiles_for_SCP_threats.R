@@ -107,12 +107,13 @@ FA.threat.impact$threat_abr <- recode(FA.threat.impact$threat_desc,
                              `Residential & commercial development` = "RD",
                              `Transportation & service corridors` = "TC")
 
-
 # a figure showing the number of values (species and ecological communities)
 # associated with each of the IUCN threat categories
 # caveat = not all values have been assessed against the IUCN threats so a subset of values
 # the colour coding depicts the impact of the threat (if calculated)
 # threats ordered by highest to lowest number of associated values overall (same per graph for consistency)
+
+col <- rev(pnw_palette("Bay"))
 
 value.threat.hist <- ggplot(data = FA.threat.impact, # %>% filter(Impact2 %in% c("High", "Medium")),
                             aes(x = threat_abr, y = n, fill=Impact2)) +
@@ -137,7 +138,7 @@ dev.off()
 FA_Threats <- left_join(FA_SpRich %>% select(Focl_Ar, Fcl_Grp), FA.threat.impact)
 colnames(FA_Threats)[3:6] <- c("Thrt_No","Threat","Impact","Count")
 st_write(FA_Threats, paste0(getwd(),"/out/Focal_Area_Threats.shp"), delete_layer = TRUE) # for the threat widget
-
+FA_Threats %>% group_by(Focl_Ar, Threat) %>% summarise(sum(Count)) %>% st_drop_geometry()
 ####################################################################################
 ###--- incorporate PP threat assessment
 # MasterList_SAR_PriorityPlaces_Threats_RollUp_Final_Share

@@ -217,7 +217,7 @@ aoi.WHA %>% group_by(TAG) %>% summarise(area=sum(Area_km2)) %>% st_drop_geometry
 aoi.WHA %>% group_by(TIMBER_HARVEST_CODE) %>% summarise(area=sum(Area_km2)) %>% st_drop_geometry()
 
 
-# 8.	Old Growth Management Areas – Legal – Current ; https://catalogue.data.gov.bc.ca/dataset/old-growth-management-areas-legal-current
+# Old Growth Management Areas – Legal – Current ; https://catalogue.data.gov.bc.ca/dataset/old-growth-management-areas-legal-current
 bcdc_search("Old Growth Management Areas", res_format = "wms")
 # Old Growth Management Areas - Legal - Current (other, wms, kml)
 # ID: 1b30f3bd-0ad0-4128-916b-66c6dd91dea4
@@ -235,3 +235,85 @@ sum(aoi.OGMA$Area_km2)
 ggplot()+
   geom_sf(data=aoi)+
   geom_sf(data=aoi.OGMA)
+
+
+###--- Managed Lands (as per the LDCC layer)
+# includes: Recreation Sites, VQO_retain, Land Act Reserves, UWR & WHA conditional harves, and community watersheds
+
+# Recreation Sites (pull from Recreation Polygon layer)
+bcdc_search("Recreation Sites", res_format = "wms")
+# Recreation Polygons (other, wms, kml)
+# ID: 263338a7-93ee-49c1-83e8-13f0bde70833
+# Name: recreation-polygons
+aoi.RS <- bcdc_query_geodata("263338a7-93ee-49c1-83e8-13f0bde70833") %>% # recreation-polygons
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
+aoi.RS <- aoi.RS %>% st_intersection(aoi) %>% filter(PROJECT_TYPE=="Recreation Site")
+aoi.RS$Area_km2 <- st_area(aoi.RS)*1e-6
+aoi.RS <- drop_units(aoi.RS)
+
+aoi.RS %>% group_by(PROJECT_TYPE) %>% summarise(area = sum(Area_km2)) %>% st_drop_geometry()
+
+# Visual Quality (not sure about this one - need confirmation on the filtering field)
+bcdc_search("Visual Quality", res_format = "wms")
+# Visual Landscape Inventory (other, wms, kml)
+# ID: 4e941067-20ec-4b5d-bca3-8831c9b2e4db
+# Name: visual-landscape-inventory
+aoi.VQO <- bcdc_query_geodata("4e941067-20ec-4b5d-bca3-8831c9b2e4db") %>% # visual-landscape-inventory
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
+aoi.VQO <- aoi.VQO %>% st_intersection(aoi) %>% filter(!is.na(REC_EVQO_CODE))
+aoi.VQO$Area_km2 <- st_area(aoi.VQO)*1e-6
+aoi.VQO <- drop_units(aoi.VQO)
+sum(aoi.VQO$Area_km2) / aoi$Area_km2
+
+aoi.VQO %>% group_by(REC_EVQO_CODE) %>% summarise(area = sum(Area_km2)) %>% st_drop_geometry()
+
+
+ggplot()+
+  geom_sf(data = aoi)+
+  geom_sf(data = aoi.VQO)
+
+# Land Act Reserves
+bcdc_search("Land Act Reserves", res_format = "wms")
+# TANTALIS - Crown Land Reserves and Notations (other, wms, kml)
+# ID: 589cb979-731f-4151-bb2b-10ed66278099
+# Name: tantalis-crown-land-reserves-and-notations
+aoi.LAR <- bcdc_query_geodata("589cb979-731f-4151-bb2b-10ed66278099") %>% # tantalis-crown-land-reserves-and-notations
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
+aoi.LAR <- aoi.LAR %>% st_intersection(aoi)
+aoi.LAR$Area_km2 <- st_area(aoi.LAR)*1e-6
+aoi.LAR <- drop_units(aoi.LAR)
+
+as.data.frame(aoi.LAR %>% group_by(TENURE_SUBTYPE, TENURE_PURPOSE) %>% summarise(area = sum(Area_km2)) %>% st_drop_geometry())
+aoi.LAR %>% filter(TENURE_PURPOSE=="ENVIRONMENT, CONSERVATION, & RECR") %>% group_by(TENURE_SUBTYPE) %>% summarise(area = sum(Area_km2)) %>% st_drop_geometry()
+
+
+# 6: Conservation Lands (other, wms, kml)
+# ID: 68327529-c0d5-4fcb-b84e-f8d98a7f8612
+# Name: conservation-lands
+aoi.CL <- bcdc_query_geodata("68327529-c0d5-4fcb-b84e-f8d98a7f8612") %>% # tantalis-crown-land-reserves-and-notations
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
+aoi.CL <- aoi.CL %>% st_intersection(aoi)
+aoi.CL$Area_km2 <- st_area(aoi.CL)*1e-6
+aoi.CL <- drop_units(aoi.CL)
+
+as.data.frame(aoi.CL %>% group_by(CONSERVATION_LAND_TYPE, TENURE_TYPE) %>% summarise(area = sum(Area_km2)) %>% st_drop_geometry())
+
+
+# Community Watersheds
+bcdc_search("Community watershed", res_format = "wms")
+# 2: Community Watersheds - Current (other, wms, kml)
+# ID: bc57faf7-23e4-43fe-918a-e999936dbafa
+# Name: community-watersheds-current
+aoi.CWtr <- bcdc_query_geodata("bc57faf7-23e4-43fe-918a-e999936dbafa") %>% # community-watersheds-current
+  filter(BBOX(st_bbox(aoi))) %>%
+  collect()
+aoi.CWtr <- aoi.CWtr %>% st_intersection(aoi)
+aoi.CWtr$Area_km2 <- st_area(aoi.CWtr)*1e-6
+aoi.CWtr <- drop_units(aoi.CWtr)
+names(aoi.CWtr)
+
+as.data.frame(aoi.CWtr %>% group_by(CW_LEGISLATION) %>% summarise(area = sum(Area_km2)) %>% st_drop_geometry())

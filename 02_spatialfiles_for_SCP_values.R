@@ -16,7 +16,7 @@
 
 # Load Packages
 list.of.packages <- c("tidyverse", "lubridate","bcdata", "bcmaps","sp","sf", "rgdal", "readxl", "Cairo",
-                      "OpenStreetMap", "ggmap", "nngeo", "raster",  "readxl", "fasterize")
+                      "OpenStreetMap", "ggmap", "nngeo", "raster",  "readxl", "fasterize", "PNWColors")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -25,6 +25,10 @@ lapply(list.of.packages, require, character.only = TRUE)
 
 SBDir <- "//spatialfiles.bcgov/work/srm/sry/Local/projlib/StewBase/Small_Home_Range_SAR/Analysis/Input/Focal_areas"
 GISDir <- "//spatialfiles.bcgov/work/wlap/sry/Workarea/jburgar/CoViST"
+
+#####################################################################################
+###--- Species & Ecosystem Values
+#####################################################################################
 
 ###---
 # read in taxonomy groupings
@@ -427,3 +431,60 @@ dev.off()
 
 
 save.image("data/spatialfiles_for_SCP_values.RData")
+
+#####################################################################################
+###--- Indigenous Values
+#####################################################################################
+
+# fgdb = "/STUP/p12/srrmc_gis.gdb"
+fgdb = "/STUP/p20/srrmc_gis.gdb"
+# fgdb = "/TTML_PlantInventory/p12/bcsarga.gdb"
+# fgdb = "/TTML_PlantInventory/p12/bcsarga.gdb"
+
+# List all feature classes in a file geodatabase
+st_layers(paste(GISDir,fgdb,sep=""))
+# For STUP
+# Available layers:
+#                 layer_name             geometry_type features fields
+# 1         ProtectWatershed             Multi Polygon       12      4
+# 2             Sub_Alpine20 3D Measured Multi Polygon    15635      4
+# 3             HeritagePoly             Multi Polygon        1      3
+# 4                Sanctuary             Multi Polygon       27      4
+# 5 CulturalLandscapeFeature             Multi Polygon       76      3
+# 6    CulturallySensHabitat             Multi Polygon        7      3
+# 7                SensWater             Multi Polygon       52      3
+# 8       SolhTemexwUTM_250k             Multi Polygon        1      5 # outline boundary
+# 9             SXTASOI_250k         Multi Line String        1      2 # not quite sure, possibly also admin/jurisdictional
+
+
+STUP_layers <- list(STUP_Wtrshd, STUP_Hrtg, STUP_Snctry, STUP_CLF, STUP_CSH, STUP_SensWtr, STUP_SubAlp)
+STUP_names <- c("ProtectWatershed", "HeritagePoly", "Sanctuary", "CulturalLandscapeFeature","CulturallySensHabitat", "SensWater", "Sub_Alpine20")
+
+# load in the layers as a list of sf objects
+# for the 06-Aug-2021 output, the p20 gdb was imported
+for(i in 1:length(STUP_layers)){
+  STUP_layers[[i]] <- st_read(dsn=paste(GISDir,fgdb,sep=""),layer=STUP_names[i]) %>%
+    st_transform(crs=3005) %>% st_intersection(aoi) %>% st_zm(drop = TRUE, what = "ZM")
+}
+
+# reformat layers the same for merging into one sf object
+for(i in 1:length(STUP_layers)){
+  STUP_layers[[i]]$Source <- STUP_names[i]
+  STUP_layers[[i]] <- rename(STUP_layers[[i]], ID = 1)
+  STUP_layers[[i]]$ID <- as.character(STUP_layers[[i]]$ID)
+  STUP_layers[[i]] <- STUP_layers[[i]] %>% dplyr::select("ID","Source")
+  STUP_layers[[i]] <- rename(STUP_layers[[i]], Shape = 3)
+}
+
+# merge into one sf object
+STUP_values <- do.call(rbind, STUP_layers)
+
+STUP_values.map <- ggplot()+
+  geom_sf(data = aoi)+
+  geom_sf(data = STUP_values, aes(fill=Source), lwd=0)+
+  scale_fill_manual(values = rev(pnw_palette("Bay",7)))+
+  theme(legend.title = element_blank(), legend.position = "bottom")
+
+Cairo(file="out/STUP_values.map.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
+STUP_values.map
+dev.off()

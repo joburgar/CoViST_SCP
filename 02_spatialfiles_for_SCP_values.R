@@ -16,7 +16,7 @@
 
 # Load Packages
 list.of.packages <- c("tidyverse", "lubridate","bcdata", "bcmaps","sp","sf", "rgdal", "readxl", "Cairo",
-                      "OpenStreetMap", "ggmap", "nngeo", "raster",  "readxl", "fasterize", "PNWColors")
+                      "OpenStreetMap", "ggmap", "nngeo", "raster",  "readxl", "fasterize", "PNWColors", "taxize")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -426,10 +426,6 @@ Cairo(file="out/r250mbuff_250mpix_species_stack.PNG", type="png", width=3000, he
 plot(r250mbuff_250mpix_stack)
 dev.off()
 
-# (4) create overlap / heatmap of element occurrences
-# (5) review overlap with focal areas (as a test for how widgets should look and to make sure we're not missing a key area)
-
-
 save.image("data/spatialfiles_for_SCP_values.RData")
 
 #####################################################################################
@@ -438,8 +434,6 @@ save.image("data/spatialfiles_for_SCP_values.RData")
 
 # fgdb = "/STUP/p12/srrmc_gis.gdb"
 fgdb = "/STUP/p20/srrmc_gis.gdb"
-# fgdb = "/TTML_PlantInventory/p12/bcsarga.gdb"
-# fgdb = "/TTML_PlantInventory/p12/bcsarga.gdb"
 
 # List all feature classes in a file geodatabase
 st_layers(paste(GISDir,fgdb,sep=""))
@@ -488,3 +482,133 @@ STUP_values.map <- ggplot()+
 Cairo(file="out/STUP_values.map.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
 STUP_values.map
 dev.off()
+
+STUP_values <- st_cast(STUP_values, "MULTIPOLYGON")
+
+r100m <- raster(ext=extent(aoi), crs=26910, res=c(100,100))
+r250m <- raster(ext=extent(aoi), crs=26910, res=c(250,250))
+
+r100m_STUP_values <- fasterize(STUP_values, r100m, by="Source")
+r100_STUP_values_stack <- stackApply(r100m_STUP_values, indices=1, fun=sum)
+writeRaster(r100_STUP_values_stack, file="out/r100_STUP_values_stack.tif", bylayer=TRUE, overwrite=TRUE)
+
+r250m_STUP_values <- fasterize(STUP_values, r250m, by="Source")
+r250_STUP_values_stack <- stackApply(r250m_STUP_values, indices=1, fun=sum)
+writeRaster(r250_STUP_values_stack, file="out/r250_STUP_values_stack.tif", bylayer=TRUE, overwrite=TRUE)
+
+Cairo(file="out/r100_STUP_values_stack.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
+plot(r100_STUP_values_stack)
+dev.off()
+
+Cairo(file="out/r250_STUP_values_stack.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
+plot(r250_STUP_values_stack)
+dev.off()
+
+###---
+# fgdb = "/TTML_PlantInventory/p12/bcsarga.gdb"
+fgdb = "/TTML_PlantInventory/p20/bcsarga.gdb"
+
+# List  feature classes in a file geodatabase
+st_layers(paste(GISDir,fgdb,sep=""))
+
+# for the 06-Aug-2021 output, the p20 gdb was imported
+# Available layers:
+#   layer_name geometry_type features fields
+# 1 TTML_PlantData_Confidential         Point      728     18
+
+# just importing one layer
+TTML_values <- st_read(dsn=paste(GISDir,fgdb,sep=""),layer="TTML_PlantData_Confidential") %>%
+    st_transform(crs=3005) %>% st_intersection(aoi) %>% st_zm(drop = TRUE, what = "ZM")
+
+TTML_plants <- as.data.frame(TTML_values %>% group_by(Common_nam) %>% count(Latin_name) %>% st_drop_geometry())
+write.csv(TTML_plants,"data/TTML_plants.csv", row.names = FALSE)
+
+as.data.frame(TTML_values %>% count(Common_nam) %>% st_drop_geometry())
+
+TTML_values %>% filter(grepl("leth", Latin_name, ignore.case = TRUE)) %>% group_by(Common_nam) %>% count(Latin_name)
+
+TTML_values <- TTML_values %>% mutate(Common_name_clean = case_when(grepl("Alder", Common_nam) ~ "red alder",
+                                                              grepl("Hazelnut", Common_nam, ignore.case = TRUE) ~ "beaked hazelnut",
+                                                              grepl("goose", Common_nam, ignore.case = TRUE) ~ "swamp gooseberry",
+                                                              grepl("Pteridum Aquilinum", Latin_name, ignore.case = TRUE) ~ "bracken fern",
+                                                              grepl("Maid", Common_nam, ignore.case = TRUE) ~ "northern maidenhair fern",
+                                                              grepl("Sword", Common_nam, ignore.case = TRUE) ~ "sword fern",
+                                                              grepl("Bleed", Common_nam, ignore.case = TRUE) ~ "bleeding heart",
+                                                              grepl("Alderberry", Common_nam, ignore.case = TRUE) ~ "red elderberry",
+                                                              grepl("Fungus", Common_nam, ignore.case = TRUE) ~ "bracket fungus",
+                                                              grepl("Fungi", Common_nam, ignore.case = TRUE) ~ "bracket fungus",
+                                                              grepl("Agaricus", Latin_name, ignore.case = TRUE) ~ "Agaricus fungus",
+                                                              grepl("Letharia", Latin_name, ignore.case = TRUE) ~ "wolf lichen",
+                                                              grepl("Moss", Common_nam, ignore.case = TRUE) ~ "moss",
+                                                              grepl("Vine", Common_nam, ignore.case = TRUE) ~ "vine maple",
+                                                              grepl("Clover", Common_nam, ignore.case = TRUE) ~ "red clover",
+                                                              grepl("Horsetail", Common_nam, ignore.case = TRUE) ~ "horsetail",
+                                                              grepl("Club", Common_nam, ignore.case = TRUE) ~ "devil's club",
+                                                              grepl("Himalayan", Common_nam, ignore.case = TRUE) ~ "Himalyan blackberry",
+                                                              grepl("Huckleberry", Common_nam, ignore.case = TRUE) ~ "red huckleberry",
+                                                              grepl("Plum", Common_nam, ignore.case = TRUE) ~ "Indian / June plum",
+                                                              grepl("Kinni", Common_nam, ignore.case = TRUE) ~ "kinnikinnick",
+                                                              grepl("Nurse", Common_nam, ignore.case = TRUE) ~ "nurse tree",
+                                                              grepl("Oregon", Common_nam, ignore.case = TRUE) ~ "Oregon grape",
+                                                              grepl("Prince", Common_nam, ignore.case = TRUE) ~ "pipsissewa / prince's pine",
+                                                              grepl("Salmon", Common_nam, ignore.case = TRUE) ~ "salmonberry",
+                                                              grepl("Sorrel", Common_nam, ignore.case = TRUE) ~ "sheep sorrel",
+                                                              grepl("Snow", Common_nam, ignore.case = TRUE) ~ "snowberry / waxberry",
+                                                              grepl("Trillium", Common_nam, ignore.case = TRUE) ~ "western / white trillium",
+                                                              grepl("Cedar", Common_nam, ignore.case = TRUE) ~ "western red cedar",
+                                                              grepl("Ginger", Common_nam, ignore.case = TRUE) ~ "wild ginger",
+                                                              TRUE ~ as.character(tolower(Common_nam))))
+
+
+# Alder for both Alder and Red Alder (same latin name)
+# Hazelnut for both Hazelnut and Becked Hazelnut (same latin name)
+# All gooseberries are the same (although one has latin name for himalayan blackberry so may want to check)
+# Black / Bracken Fern all the same
+# Maiden Hair and Maidenhair the same
+# Group all Sword Ferns
+# group Bleeding Hearts
+# Keep Blue and Red Elderberry separate
+# Red Alderberry should be Red Elderberry
+# Group Bracket Fungus together
+# check on entry for Vine Maple with Acer Macrophyllum as latin name (is it broadleaf or vine?)
+# Group Clover and Red Clover
+# Group Common, Giant and Horsetail all as Horsetail
+# Group Devel and Devil club - check on 'Devel's Club' with Vaccinium Parvifolium as latin name (red huckleberry)
+# Group the two "Dock" as likely Western Dock (Rumex occidentalis)
+# 3 blackberry: Evergreen, Himalayan, Trailing (use these prefixes to find the records)
+# Group fungi based on Latin name
+# Group 3 versions of fungus into Bracket Fungus
+# Group all huckleberry as one (Vaccinium parvifolium)
+# Group all plum as "Indian Plum or June Plum - Osmaronia cerasiformis)
+# Group Kinnikinnicks together
+# Group mosses together, except keep "Wold Lichen" or more likely wolf lichen separate
+# Group all nurse trees together
+# Group (Short) Oregon Grape / Berry together
+# Group Prince and Princess pipsissewa together
+# Group all salmonberries together
+# Group sorrels
+# Group snowberries and/or waxberry as Snowberry or Waxberry
+# Check on Stinging nettle with latin name Osmaronia cerasiformis (Indian plum)
+# what is "test site"
+# Group Trilliums together
+# Group cedars (Western Red Cedar)
+# Group Gingers - check that Asarum caudatum is correct and Asarum circinatum is a typo
+
+
+TTML_values$Latin_name_clean <- trimws(TTML_values$Latin_name, "both")
+TTML_values$Latin_name_clean <- taxize_capwords(TTML_values$Latin_name_clean, onlyfirst = TRUE)
+
+as.data.frame(TTML_values %>% group_by(Common_name_clean) %>% count(Latin_name_clean))
+as.data.frame(TTML_values %>% count(Common_name_clean))
+
+write.csv(TTML_values %>% group_by(Common_name_clean, Latin_name_clean, Common_nam) %>% count(Latin_name) %>% st_drop_geometry(),
+          "data/TTML_plants_clean.csv", row.names = FALSE)
+write.csv(TTML_values %>% st_drop_geometry(),
+          "data/TTML_plants_clean_ALL.csv", row.names = FALSE)
+
+TTML_values %>% count(Common_nam)
+TTML_values %>% count(Common_name_clean)
+
+ggplot()+
+  geom_sf(data = TTML_values, aes(col=Common_name_clean))+
+  theme(legend.position = "none")

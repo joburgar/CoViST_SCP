@@ -12,6 +12,20 @@
 
 #####################################################################################
 
+# GOAL: Continuous land tenure layer with planning unit ownership.
+# This is the base ‘cost’ layer and is meant only as 'administration' layer (i.e., who to partner with for conservation actions)
+# thus will include various levels of tenure within the 'ownership' type.
+# For example, will contain parks within the respective Provincial, Federal, Municipal layer.
+
+# DECISION [11-Aug-2021 Meeting with Bill Harrower, Agnieszka Sztaba and Joanna Burgar]:
+# 1.	Limit ownership layer to: Provincial – Crown Administered (60s), Provincial – Crown Tenure (70s), Federal, First Nations, Municipal, and Private
+# 2.	Use Forest Cover Ownership as default layer – i.e., for Provincial, Federal and First Nations
+# 3.	Use ParcelMap Private & Unknown OWNER_TYPE as the private ownership layer
+# 4.	Use ParcelMap Municipal OWNER_TYPE as the municipal ownership layer
+
+
+#####################################################################################
+
 .libPaths("C:/Program Files/R/R-4.0.5/library") # to ensure reading/writing libraries from C drive
 # tz = Sys.timezone() # specify timezone in BC
 
@@ -23,6 +37,21 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 #####################################################################################
+
+###--- Feature to aoi retrieval function
+
+retrieve_geodata_aoi <- function (ID=ID){
+  aoi.geodata <- bcdc_query_geodata(ID) %>%
+    filter(BBOX(st_bbox(aoi))) %>%
+    collect()
+  aoi.geodata <- aoi.geodata %>% st_intersection(aoi)
+  aoi.geodata$Area_km2 <- st_area(aoi.geodata)*1e-6
+  aoi.geodata <- drop_units(aoi.geodata)
+  return(aoi.geodata)
+}
+
+#####################################################################################
+
 
 ###--- Area of Interest (AOI) is Study Area
 # keep in mind that WGS84 lat/long espg = 4326; BC Albers espg = 3005; NAD83 / UTM zone 10N espg = 26910
@@ -55,22 +84,18 @@ st_write(aoi, paste0(getwd(),"/out/aoi.shp"), delete_layer = TRUE)
 # 1: Generalized Forest Cover Ownership (wms, kml, other)
 # ID: 5fc4e8ce-dd1d-44fd-af17-e0789cf65e4e
 
-aoi.FCO <- bcdc_query_geodata("5fc4e8ce-dd1d-44fd-af17-e0789cf65e4e") %>%  # Forest Cover Ownership
-  filter(BBOX(st_bbox(aoi))) %>% # works with BBOX but not INTERSECT
-  collect()
-aoi.FCO <- aoi.FCO %>% st_intersection(aoi)
+aoi.FCO <- retrieve_geodata_aoi(ID="5fc4e8ce-dd1d-44fd-af17-e0789cf65e4e")
 
-# aoi.FCO %>% count(OWN)
-write.csv(aoi.FCO %>% st_drop_geometry(), "out/aoi.FCO.csv", row.names = FALSE)
+# # aoi.FCO %>% count(OWN)
+# write.csv(aoi.FCO %>% st_drop_geometry(), "out/aoi.FCO.csv", row.names = FALSE)
 
 FCO.type <- as.data.frame(aoi.FCO %>% group_by(OWN) %>% count(OWNERSHIP_DESCRIPTION) %>% st_drop_geometry())
 
-ggplot()+
-  geom_sf(data=aoi) +
-  geom_sf(data=aoi.FCO %>% filter(OWN==41), col="red") + # 41 = Private - Land Claim Settlement Area
-  geom_sf(data=aoi.FCO %>% filter(OWN==52), col="blue") + # 41 = Federal - Indian Reserve
-  geom_sf(data=aoi.FCO %>% filter(OWN==53), col="darkgreen")
-
+# ggplot()+
+#   geom_sf(data=aoi) +
+#   geom_sf(data=aoi.FCO %>% filter(OWN==41), col="red") + # 41 = Private - Land Claim Settlement Area
+#   geom_sf(data=aoi.FCO %>% filter(OWN==52), col="blue") + # 41 = Federal - Indian Reserve
+#   geom_sf(data=aoi.FCO %>% filter(OWN==53), col="darkgreen")
 
 # to union each ownership sub-type, resolving category overlaps
 aoi.FCO.OWN.union <-aoi.FCO %>% group_by(OWN) %>%
@@ -105,19 +130,21 @@ FCO_area <- drop_units(FCO_area)
 write.csv(FCO_area, "out/aoi.FCO_area.csv", row.names = FALSE)
 
 # to union each ownership type, considering new groupings
-# Crown Provincial = 60,61,62,65,66,67,68,69,72,74,75,77,79
+# Crown Lands - Provincial Administered = 60,61,62,65,66,67,68,69
+# Crown Tenure = 72,74,75,77,79
 # Federal = 53,54
 # First Nation = 52,78,41
 # Municipal = 80, 81
 # Private = 40
 # Unknown / Other = 91,99
 
-aoi.FCO$Final_Grp <- ifelse(aoi.FCO$OWN %in% c(60,61,62,65,66,67,68,69,72,74,75,77,79), "Provincial",
-                            ifelse(aoi.FCO$OWN %in% c(53,54), "Federal",
-                                   ifelse(aoi.FCO$OWN %in% c(52,78,41), "First Nation",
-                                          ifelse(aoi.FCO$OWN %in% c(80,81), "Municipal",
-                                                 ifelse(aoi.FCO$OWN==40, "Private",
-                                                        ifelse(aoi.FCO$OWN %in% c(91,99), "Other", NA))))))
+aoi.FCO$Final_Grp <- ifelse(aoi.FCO$OWN %in% c(60,61,62,65,66,67,68,69), "Provincial",
+                            ifelse(aoi.FCO$OWN %in% c(72,74,75,77,79), "Crown Tenure",
+                                   ifelse(aoi.FCO$OWN %in% c(53,54), "Federal",
+                                          ifelse(aoi.FCO$OWN %in% c(52,78,41), "First Nation",
+                                                 ifelse(aoi.FCO$OWN %in% c(80,81), "Municipal",
+                                                        ifelse(aoi.FCO$OWN==40, "Private",
+                                                               ifelse(aoi.FCO$OWN %in% c(91,99), "Other", NA)))))))
 aoi.FCO %>% group_by(Final_Grp) %>% count(OWN) %>% st_drop_geometry()
 
 aoi.FCO.Final.union <-aoi.FCO %>% group_by(Final_Grp) %>%
@@ -131,11 +158,11 @@ aoi.FCO.Final.union %>% st_drop_geometry()
 
 levels(aoi.FCO.Final.union$Final_Grp)
 aoi.FCO.Final.union$Final_Grp <- factor(aoi.FCO.Final.union$Final_Grp,
-                                        levels = c("Provincial","Federal","First Nation","Municipal","Private","Other"))
+                                        levels = c("Provincial","Crown Tenure","Federal","First Nation","Municipal","Private","Other"))
 ggplot()+
   geom_sf(data=aoi) +
   geom_sf(data=aoi.FCO.Final.union, aes(fill=Final_Grp), lwd=0)+
-  scale_fill_manual(values = (pnw_palette("Starfish",6)))
+  scale_fill_manual(values = (pnw_palette("Starfish",7)))
 
 aoi.FCO.Final.union %>% summarise(sum(percSA), sum(areakm2)) %>% st_drop_geometry()
 # # A tibble: 1 x 2
@@ -234,22 +261,23 @@ ggplot()+
 
 
 # RECOMMEND USING MERGED PRIVATE AND UNKNOWN OWNER_TYPE st_union POLYGON AS PRIVATE
+# DECISION 12 Aug 2021 to merge the two
 
 ###--- looking for overlaps between FCO and PMBC at municipal level
 # note that these Municipal layers contain Park sub-class
-aoi.FCO.muni.union <- aoi.FCO %>% filter(OWN_Grp==8) %>% st_union() # Crown - Municipal
+# aoi.FCO.muni.union <- aoi.FCO %>% filter(OWN_Grp==8) %>% st_union() # Crown - Municipal
+#
+# st_area(aoi.FCO.muni.union) - st_area(aoi.PMBC.muni.union) # PMBC larger area
+#
+# PCMB.FCO.diff.muni <- st_difference(aoi.PMBC.muni.union, aoi.FCO.muni.union)
+# st_area(PCMB.FCO.diff.muni) * 1e-6 # PMBC Municipal covers 74 km2 additional area
+# FCO.PCMB.diff.muni <- st_difference(aoi.FCO.muni.union, aoi.PMBC.muni.union)
+# st_area(FCO.PCMB.diff.muni) * 1e-6 # PMBC Municipal covers 53 km2 additional area
 
-st_area(aoi.FCO.muni.union) - st_area(aoi.PMBC.muni.union) # PMBC larger area
-
-PCMB.FCO.diff.muni <- st_difference(aoi.PMBC.muni.union, aoi.FCO.muni.union)
-st_area(PCMB.FCO.diff.muni) * 1e-6 # PMBC Municipal covers 74 km2 additional area
-FCO.PCMB.diff.muni <- st_difference(aoi.FCO.muni.union, aoi.PMBC.muni.union)
-st_area(FCO.PCMB.diff.muni) * 1e-6 # PMBC Municipal covers 53 km2 additional area
-
-ggplot()+
-  geom_sf(data=PCMB.FCO.diff.muni, col="blue")+
-  geom_sf(data=FCO.PCMB.diff.muni, col="red")
-
+# ggplot()+
+#   geom_sf(data=PCMB.FCO.diff.muni, col="blue")+
+#   geom_sf(data=FCO.PCMB.diff.muni, col="red")
+#
 # RECOMMEND USING PCMB Municipal as Municipal layer
 
 # remove large files for housekeeping
@@ -259,8 +287,8 @@ rm(aoi.FCO)
 ###--- now merge FCO and PCMB layers to create one cost layer
 names(aoi.FCO.Final.union)
 names(aoi.PMBC.FINAL.union)
-colnames(aoi.FCO.Final.union)[1] <- "Ownership"
-colnames(aoi.PMBC.FINAL.union)[1] <- "Ownership"
+colnames(aoi.FCO.Final.union)[1] <- "Administered"
+colnames(aoi.PMBC.FINAL.union)[1] <- "Administered"
 
 aoi.FCO.Final.union$Source <- "FCO"
 aoi.PMBC.FINAL.union$Source <- "PMBC"
@@ -269,21 +297,21 @@ aoi.PMBC.FINAL.union$Source <- "PMBC"
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
 # 2.000   3.000   3.500   3.667   4.750   5.000
 
-aoi.FCO.Final.union$Ownership <- case_when(aoi.FCO.Final.union$Ownership=="Unknown" ~ "Private",
-                                  TRUE ~ as.character(aoi.FCO.Final.union$Ownership))
+aoi.FCO.Final.union$Administered <- case_when(aoi.FCO.Final.union$Administered=="Unknown" ~ "Private",
+                                  TRUE ~ as.character(aoi.FCO.Final.union$Administered))
 
-aoi.Tenure <- rbind(aoi.FCO.Final.union %>% filter(Ownership %in% c("Provincial", "Federal", "First Nation")),
-                    aoi.PMBC.FINAL.union %>% filter(Ownership %in% c("Private", "Municipal")))
+aoi.Tenure <- rbind(aoi.FCO.Final.union %>% filter(Administered %in% c("Provincial", "Crown Tenure", "Federal", "First Nation")),
+                    aoi.PMBC.FINAL.union %>% filter(Administered %in% c("Private", "Municipal")))
 
-aoi.Tenure %>% arrange(Ownership) %>% st_drop_geometry()
+aoi.Tenure %>% arrange(Administered) %>% st_drop_geometry()
 
-levels(aoi.Tenure$Ownership)
-aoi.Tenure$Ownership <- factor(aoi.Tenure$Ownership,
-                               levels = c("Provincial","Federal","First Nation","Municipal","Private"))
+levels(aoi.Tenure$Administered)
+aoi.Tenure$Administered <- factor(aoi.Tenure$Administered,
+                               levels = c("Provincial", "Crown Tenure","Federal","First Nation","Municipal","Private"))
 
 ggplot()+
   geom_sf(data = aoi) +
-  geom_sf(data = aoi.Tenure, aes(fill=Ownership), lwd=0) +
+  geom_sf(data = aoi.Tenure, aes(fill=Administered), lwd=0) +
   scale_fill_manual(values = (pnw_palette("Starfish",5)))
 
 # remove potential polygon slivers
@@ -291,7 +319,7 @@ ggplot()+
 # also taking a long time, so opt to disregard for now
 # instead just redo dissolve as before, for each ownership type into single multipolygon feature
 # to union each ownership, resolving category overlaps (should only be applicable for Private now)
-aoi.Tenure <- aoi.Tenure %>% group_by(Ownership) %>%
+aoi.Tenure <- aoi.Tenure %>% group_by(Administered) %>%
   # st_snap(x = ., y = ., tolerance = 0.1) %>%
   summarise(across(geometry, ~ st_union(.)), .groups = "keep") %>%
   summarise(across(geometry, ~ st_combine(.)))
@@ -307,8 +335,8 @@ aoi.Tenure %>% summarise(sum(percSA)) %>% st_drop_geometry() # 98.1% - still mis
 # aoi.Tenure2 <- aoi.Tenure %>% st_combine() %>% st_union()
 # st_area(aoi.Tenure2) / st_area(aoi) * 100 # 98.11% - still missing some slivers and plots
 
-aoi.Tenure.unknown <- st_difference(aoi, st_union(aoi.Tenure))
-st_area(aoi.Tenure.unknown) * 1e-6 # 188.4224 [m^2]
+# aoi.Tenure.unknown <- st_difference(aoi, st_union(aoi.Tenure))
+# st_area(aoi.Tenure.unknown) * 1e-6 # 188.4224 [m^2]
 # aoi.Tenure.unknown seems to be the correct size but a huge file so possibly made up of slivers
 # might be better to just raster without and then any "0" pixels (if there are any) can be called "unknown"
 
@@ -325,22 +353,25 @@ rm(aoi.PMBC.OWN.union)
 # do for 100 m and 250 m polygon layers at 100 m and 250 m pixel sizes
 
 head(aoi.Tenure) %>% st_drop_geometry()
-# Ownership    areakm2 percSA
-# 1 Provincial    6017.  69.7
-# 2 Federal         78.2  0.906
-# 3 First Nation   119.   1.38
-# 4 Municipal      340.   3.94
-# 5 Private       1913.  22.2
+# Administered areakm2 percSA
+# 1 Provincial    5599.  64.9
+# 2 Crown Tenure   418.   4.85
+# 3 Federal         78.2  0.906
+# 4 First Nation   119.   1.38
+# 5 Municipal      340.   3.94
+# 6 Private       1913.  22.2
 
-# currently set with order of 1 (Provincial) to 5 (Private)
+# currently set with order of 1 (Provincial) to 6 (Private)
 # want to keep this order and, similar to round 1 analysis, default to "easier" cost for pixels
 # this means use the fun="min" option in fasterize
+
+###---
 
 r100m <- raster(ext=extent(aoi), crs=26910, res=c(100,100))
 r250m <- raster(ext=extent(aoi), crs=26910, res=c(250,250))
 
-r100m_cost <- fasterize(aoi.Tenure, r100m, field="Ownership", fun="min")
-r250m_cost <- fasterize(aoi.Tenure, r250m, field="Ownership", fun="min")
+r100m_cost <- fasterize(aoi.Tenure, r100m, field="Administered", fun="min")
+r250m_cost <- fasterize(aoi.Tenure, r250m, field="Administered", fun="min")
 
 # to do a check and calculate area for each cost group
 
@@ -352,7 +383,7 @@ r250m_area * 1e-6; (r250m_area / st_area(aoi))*100
 
 
 # produce raster tiff files and maps
-pal <- pnw_palette("Starfish",5) # colour scheme for plotting
+pal <- pnw_palette("Starfish",6) # colour scheme for plotting
 
 Cairo(file="out/r100m_cost.PNG", type="png", width=3000, height=2200,pointsize=15,bg="white",dpi=300)
 plot(r100m_cost, col=pal)
